@@ -1,0 +1,142 @@
+from __future__ import print_function
+
+from copy import deepcopy
+import docopt
+import jinja2
+import os
+from os import path
+from sys import stdin, stdout, stderr
+import yaml
+
+CLI_DOC = """
+USAGE:
+    chunksub.py [-P PROJ -q QUEUE -n CPUS -w TIME -m MEM -c CONFIG \
+-t TEMPLATE -d DIR] -s SCRIPT -N NAME [<source>]
+
+OPTIONS:
+    -P PROJ      Cluster project name
+    -q QUEUE     Queue name (normal/express/copyq)
+    -n CPUS      Processors per node
+    -w TIME      Walltime to request
+    -t TEMPLATE  Template file [default: ~/.chunksub/template.job]
+    -m MEM       RAM to request
+    -c CONFIG    Path to config file
+    -d DIR       Job's working directory [default: ./]
+    -s SCRIPT    GNU parallel script to run
+    -N NAME      Job name (will be basename of chunks & jobs)
+"""
+
+CONFIG_FIELDS = {
+    'project': str,
+    'queue': str,
+    'ncpus': int,
+    'wtime': str,
+    'mem': str,
+    'wdir': str,
+    'script': str,
+}
+
+def load_config(fname):
+    fname = path.expanduser(fname)
+    try:
+        with open(fname) as cfh:
+            config = yaml.load(cfh)
+    except IOError:
+        print("ERROR: non-existant config file", fname, file=stderr)
+        exit(1)
+    return config
+
+def make_job_template(fname):
+    with open(fname) as tfh:
+        template = tfh.read()
+    return jinja2.Template(template)
+
+def make_config(opts):
+    """Parses the CLI and loads the config dict"""
+    cli_config_mapping = {
+        '-P': 'project',
+        '-q': 'queue',
+        '-n': 'ncpus',
+        '-w': 'wtime',
+        '-m': 'mem',
+        '-d': 'wdir',
+    }
+    if opts['-c']:
+        config_file = opts['-c']
+    else:
+        config_file = '~/.chunksub/config.yml'
+    if path.exists(config_file):
+        config = load_config(config_file)
+    else:
+        config = {}
+
+    for cli, cfg in cli_config_mapping.items():
+        if opts[cli]:
+            # overide the config file's default with the CLI value
+            config[cfg] = opts[cli]
+
+    # load script
+    with open(opts['-s']) as sfh:
+        script = sfh.read().strip()
+    config['script'] = script
+
+    for field, sanitiser in CONFIG_FIELDS.items():
+        if field not in config:
+            print("ERROR: must provide", field, file=stderr)
+            print("\n", CLI_DOC, file=stderr)
+            exit(1)
+        config[field] = sanitiser(config[field])
+
+    # force absolute paths
+    if config['wdir'].startswith('.'):
+        config['wdir'] = path.abspath(config['wdir'])
+
+    return config
+
+
+def make_chunks(wdir, name, infh, n):
+    chunk_dir = path.join(wdir, 'cs_chunks', name)
+    if not path.isdir(chunk_dir):
+        os.makedirs(chunk_dir)
+    chunk_namer = path.join(chunk_dir, "{:03d}")
+    chunk_idx = 0
+    chunk_fh = None
+    for idx, record in enumerate(infh):
+        if idx % n == 0:
+            if chunk_fh is not None:
+                chunk_fh.close()
+            chunk_file = chunk_namer.format(chunk_idx)
+            chunk_fh = open(chunk_file, 'w')
+            chunk_idx += 1
+            yield chunk_file
+        chunk_fh.write(record)
+
+
+def make_job_files():
+    opts = docopt.docopt(CLI_DOC)
+    config = make_config(opts)
+    wdir = config['wdir']
+    template = make_job_template(opts['-t'])
+    name = opts['-N']
+    if opts['<source>'] is None:
+        infh = stdin
+    else:
+        infh = open(opts['<source>'])
+    job_dir = path.join(wdir, 'cs_jobs', name)
+    if not path.isdir(job_dir):
+        os.makedirs(job_dir)
+    job_namer = path.join(job_dir, "{:03d}.job")
+    chunk_sz = config['ncpus']
+
+    for job_id, chunk_file in enumerate(make_chunks(config['wdir'], name,
+                                                    infh, chunk_sz)):
+        this_config = deepcopy(config)
+        this_config['chunk_file'] = chunk_file
+        job_file = job_namer.format(job_id)
+        with open(job_file, 'w') as jfh:
+            jfh.write(template.render(**this_config) + '\n')
+        print("qsub '{}'".format(job_file))
+    infh.close()
+
+if __name__ == '__main__':
+    make_job_files()
