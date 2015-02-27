@@ -13,7 +13,7 @@ import yaml
 CLI_DOC = """
 USAGE:
     chunksub.py [-P PROJ -q QUEUE -n CPUS -w TIME -m MEM -c CONFIG \
--t TEMPLATE -d DIR] -s SCRIPT -N NAME [<source>]
+-t TEMPLATE -d DIR -o OVERLOAD ] -s SCRIPT -N NAME [<source>]
 
 OPTIONS:
     -P PROJ      Cluster project name
@@ -26,6 +26,8 @@ OPTIONS:
     -d DIR       Job's working directory [default: ./]
     -s SCRIPT    GNU parallel script to run
     -N NAME      Job name (will be basename of chunks & jobs)
+    -o OVERLOAD  Overloading factor. This times 'ncpus' jobs will be sumbitted
+                 to each node.
 """
 
 CONFIG_FIELDS = {
@@ -128,7 +130,11 @@ def make_job_files():
     if not path.isdir(job_dir):
         os.makedirs(job_dir)
     job_namer = path.join(job_dir, "{:03d}.job")
-    chunk_sz = config['ncpus']
+    try:
+        overload = int(opts['-o'])
+    except (TypeError, ValueError):
+        overload = 1
+    chunk_sz = config['ncpus'] * overload
 
     for job_id, chunk_file in enumerate(make_chunks(config['wdir'], name,
                                                     infh, chunk_sz)):
