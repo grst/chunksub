@@ -1,6 +1,0 @@
-project: aa1
-queue: normal
-ncpus: 16
-wtime: 1:00:00
-mem: 1G
-wdir: .

@@ -20,9 +20,7 @@
 {#
 #PBS -o {{ wdir }}
 #PBS -e {{ wdir }}/logs
-#} 
-
-module load bi-R-3.1.3
+#}
 
 cd {{ wdir }}
 
