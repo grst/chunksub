@@ -6,32 +6,26 @@
 #PBS -q {{ queue }}
 #$ -q {{ queue }}
 {% endif %}
-
 {% if ncpus is not none %}
 #PBS -l ppn={{ ncpus }}
 #$ -pe ompi {{ ncpus }}
 {% endif %}
-
 {% if wtime is not none %}
 #PBS -l walltime={{ wtime }}
 #$ -l time={{ wtime }}
 {% endif %}
-
 {% if stdout is not none %}
 #PBS -o {{ stdout }}
 #$ -o {{ stdout }}
 {% endif %}
-
 {% if stderr is not none %}
 #PBS -e {{ stderr }}
 #$ -e {{ stderr }}
 {% endif %}
-
 {% if name is not none %}
 #PBS -N {{ name }}
 #$ -N {{ name }}
 {% endif %}
-
 {% if mem is not none %}
 #PBS -l mem={{ mem }}
 #$ -mem {{ mem }}
@@ -42,5 +36,5 @@ if [ -e pbs_server ]; then
         cd {{ wdir }}
 fi
 
-cat {{ chunk_file}} | xargs -I '{}' {{ script }}
+cat {{ chunk_file}} | xargs -I '{}' {{ command }}
 

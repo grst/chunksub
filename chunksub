@@ -1,8 +1,30 @@
 #!/usr/bin/env python
+"""
+USAGE:
+    chunksub --help
+    chunksub [-q QUEUE -n NCPUS -w WTIME -m MEM -d WDIR \
+-c CONFIG -t TEMPLATE -s CHUNKSIZE -j JOB_DIR -X EXECUTE] \
+-N NAME <command> [<arguments>]
+
+GRID-OPTIONS:
+    -q QUEUE, --queue QUEUE     Queue name (normal/express/copyq)
+    -n NCPUS, --ncpus NCPUS     Processors per node
+    -w WTIME, --wtime WTIME     Walltime to request
+    -N NAME, --name NAME        Job name (will be basename of chunks & jobs)
+    -m MEM, --mem MEM           RAM to request
+    -d WDIR, --wdir WDIR        Job's working directory [default: ./]
+
+CHUNKSUB-OPTIONS:
+    -c CONFIG, --config CONFIG              Path to yaml config file [default: ~/.chunksub/config]
+    -t TEMPLATE, --template TEMPLATE        Jinja2 template for job file (default: integrated template)
+    -s CHUNKSIZE, --chunksize CHUNKSIZE     Number of lines per chunk [default: 16]
+    -j JOB_DIR, --job_dir JOB_DIR           Directory to save the job files. [default: ./chunksub]
+    -X EXECUTE, --execute EXECUTE           Execute qsub instead of printing the command to STDOUT [default: yes]
+"""
 
 from __future__ import print_function
 
-from copy import deepcopy
+from copy import copy
 import docopt
 import jinja2
 import os
@@ -12,27 +34,9 @@ import pkg_resources
 import yaml
 from pprint import pprint
 from subprocess import call
+import tempfile
+import io
 
-CLI_DOC = """
-USAGE:
-    chunksub.py [-q QUEUE -n NCPUS -w TIME -m MEM -d WDIR\
-    -c CONFIG -t TEMPLATE -s CHUNKSIZE -j JOB_DIR] \
-    -N NAME [<command>] [<arguments>]
-
-OPTIONS:
-    -q --queue      QUEUE     Queue name (normal/express/copyq)
-    -n --ncpus      NCPUS     Processors per node
-    -w --wtime      WTIME     Walltime to request
-    -N --name       NAME      Job name (will be basename of chunks & jobs)
-    -m --mem        MEM       RAM to request
-    -d --wdir       WDIR      Job's working directory [default: ./]
-
-    -c --config     CONFIG    Path to yaml config file [default: ~/.chunksub/config]
-    -t --template   TEMPLATE  Jinja2 template for job file (default: integrated template)
-    -s --chunksize  CHUNKSIZE Number of lines per chunk [default: 16]
-    -j --job_dir    JOB_DIR   Directory to save the job files. [default ./chunksub]
-    -X --execute    EXECUTE   Execute qsub instead of printing the command to STDOUT [default: yes]
-"""
 
 CONFIG_FIELDS = {
     'queue': str,
@@ -42,24 +46,10 @@ CONFIG_FIELDS = {
     'mem': str,
     'wdir': str,
     'template': str,
-    'chunk_size': int,
+    'chunksize': int,
     'job_dir': str,
     'execute': lambda x: True if x.lower() in ['y', 'yes', 'true'] else False
 }
-
-CLI_CONFIG_MAPPING = {
-    '-q': 'queue',
-    '-n': 'ncpus',
-    '-w': 'wtime',
-    '-N': 'name',
-    '-m': 'mem',
-    '-d': 'wdir',
-    '-t': 'template',
-    '-l': 'chunk_size',
-    '-j': "job_dir",
-    '-X': "execute"
-}
-
 
 def get_job_template(fname):
     """Create job template with jinja2"""
@@ -81,19 +71,52 @@ def load_config(fname):
 
 
 def make_config(opts):
-    """Parses the CLI and loads the config dict"""
+    """
+    Parses the CLI and loads the config dict.
+
+    >>> argfile = tempfile.NamedTemporaryFile()
+    >>> argv = [ \
+        "-q", "the_queue", \
+        "-w", "12:13:42", \
+        "--ncpus", "8", \
+        "-m4G", \
+        "--wdir=/tmp/test", \
+        "-N", "the_name", \
+        "-c", "/tmp/config.yaml", \
+        "-t", "/tmp/template.sh", \
+        "-s", "16", \
+        "--job_dir", "/tmp/job", \
+        "-X", 'yes', \
+        "echo", \
+        argfile.name \
+    ]
+    >>> opts = docopt.docopt(__doc__, argv = argv)
+    >>> pprint(make_config(opts))  # doctest:+ELLIPSIS
+    {'arg_file': <_io.TextIOWrapper name='...' mode='r' encoding='UTF-8'>,
+     'chunksize': 16,
+     'command': 'echo {}',
+     'execute': True,
+     'job_dir': '/tmp/job',
+     'mem': '4G',
+     'name': 'the_name',
+     'ncpus': 8,
+     'queue': 'the_queue',
+     'template': '/tmp/template.sh',
+     'wdir': '/tmp/test',
+     'wtime': '12:13:42'}
+    """
     # load config file if specified
-    if opts['-c']:
-        config_file = opts['-c']
+    if opts['--config']:
+        config_file = opts['--config']
     if path.exists(config_file):
         config = load_config(config_file)
     else:
         config = {}
 
     # command line options override those from the yaml config
-    for cli, cfg in CLI_CONFIG_MAPPING.items():
-        if opts[cli]:
-            config[cfg] = opts[cli]
+    for cli, cfg in CONFIG_FIELDS.items():
+        if opts["--" + cli]:
+            config[cli] = opts["--" + cli]
 
     # the command to execute with qsub
     config['command'] = opts['<command>']
@@ -117,10 +140,12 @@ def make_config(opts):
     # force absolute paths
     if config['wdir'].startswith('.'):
         config['wdir'] = path.abspath(config['wdir'])
+    if config['job_dir'].startswith('.'):
+        config['job_dir'] = path.abspath(config['job_dir'])
 
     # load default template if not specified
     if config['template'] is None:
-        config['template'] = pkg_resources.resource_string(__name__, "job_template")
+        config['template'] = pkg_resources.resource_filename(__name__, "job_template")
 
     return config
 
@@ -151,6 +176,14 @@ def make_chunks(chunksub_dir, arg_fileh, chunk_size):
     Yields:
         File name of a chunk file.
 
+    >>> chunksub_dir = "/tmp/chunksub"
+    >>> os.makedirs(chunksub_dir, exist_ok=True)
+    >>> argfile = io.StringIO("\\n".join(str(x) for x in range(50)))
+    >>> files = [file for file in make_chunks(chunksub_dir, argfile, chunk_size=10)]
+    >>> files
+    ['/tmp/chunksub/0000.chunk', '/tmp/chunksub/0001.chunk', '/tmp/chunksub/0002.chunk', '/tmp/chunksub/0003.chunk', '/tmp/chunksub/0004.chunk']
+    >>> all([os.path.isfile(file) for file in files])
+    True
     """
     chunk_idx = 0
     chunk_fh = None
@@ -178,10 +211,10 @@ def main():
     Read an argument file, split it into chunks and create a job file
     for each chunk.
     """
-    opts = docopt.docopt(CLI_DOC)
+    opts = docopt.docopt(__doc__)
     config = make_config(opts)
-    pprint("CONFIGURATION:", stream=stderr)
-    pprint(config, stream=stderr)
+    print("CONFIGURATION:")
+    pprint(config)
     template = get_job_template(config['template'])
 
     # make chunksub working directory (create .job and .chunk files there)
@@ -192,8 +225,8 @@ def main():
     # split argument file into chunks and create job files.
     job_files = []
     for job_id, chunk_file in enumerate(make_chunks(
-            chunksub_dir, config['arg_file'], config['chunk_size'])):
-        this_config = deepcopy(config)
+            chunksub_dir, config['arg_file'], config['chunksize'])):
+        this_config = copy(config)
         this_config['chunk_file'] = chunk_file
         this_config['stdout'] = get_file_name(chunksub_dir, job_id, ".out")
         this_config['stderr'] = get_file_name(chunksub_dir, job_id, ".err")
