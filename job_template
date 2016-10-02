@@ -1,28 +1,46 @@
 #!/bin/bash
-{% if project is not none %}
-#PBS -P {{ project }}
-{% endif %}
-{% if project is not none %}
-#PBS -q {{ queue }}
-{% endif %}
-{% if project is not none %}
-#PBS -l ncpus={{ ncpus }}
-{% endif %}
-{% if project is not none %}
-#PBS -l walltime={{ wtime }}
-{% endif %}
-{% if project is not none %}
-#PBS -l other=gdata1
-{% endif %}
-{% if project is not none %}
-#PBS -l mem={{ mem }}
-{% endif %}
-{#
-#PBS -o {{ wdir }}
-#PBS -e {{ wdir }}/logs
-#}
+# Grid engine active comments
+# see comparison on https://kb.iu.edu/d/avgl
 
-cd {{ wdir }}
+{% if queue is not none %}
+#PBS -q {{ queue }}
+#$ -q {{ queue }}
+{% endif %}
+
+{% if ncpus is not none %}
+#PBS -l ppn={{ ncpus }}
+#$ -pe ompi {{ ncpus }}
+{% endif %}
+
+{% if wtime is not none %}
+#PBS -l walltime={{ wtime }}
+#$ -l time={{ wtime }}
+{% endif %}
+
+{% if stdout is not none %}
+#PBS -o {{ stdout }}
+#$ -o {{ stdout }}
+{% endif %}
+
+{% if stderr is not none %}
+#PBS -e {{ stderr }}
+#$ -e {{ stderr }}
+{% endif %}
+
+{% if name is not none %}
+#PBS -N {{ name }}
+#$ -N {{ name }}
+{% endif %}
+
+{% if mem is not none %}
+#PBS -l mem={{ mem }}
+#$ -mem {{ mem }}
+{% endif %}
+
+#$ -wd {{ wdir }}
+if [ -e pbs_server ]; then
+        cd {{ wdir }}
+fi
 
 cat {{ chunk_file}} | xargs -I '{}' {{ script }}
 

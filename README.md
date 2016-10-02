@@ -3,6 +3,9 @@
 
 *"like gnu parallel, only for qsub"*
 
+## Installation
+Will end up on PyPI at some point...
+
 ## Usage
 Say, we have a list of input arguments that we would like to process,
 e.g. [GEO](https://www.ncbi.nlm.nih.gov/geo/) accession numbers.
