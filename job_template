@@ -8,7 +8,7 @@
 {% endif %}
 {% if ncpus is not none %}
 #PBS -l ppn={{ ncpus }}
-#$ -pe ompi {{ ncpus }}
+#$ -pe smp {{ ncpus }}
 {% endif %}
 {% if wtime is not none %}
 #PBS -l walltime={{ wtime }}
@@ -23,12 +23,12 @@
 #$ -e {{ stderr }}
 {% endif %}
 {% if name is not none %}
-#PBS -N {{ name }}
-#$ -N {{ name }}
+#PBS -N {{ name }}_{{ job_id }}
+#$ -N {{ name }}_{{ job_id }}
 {% endif %}
 {% if mem is not none %}
 #PBS -l mem={{ mem }}
-#$ -mem {{ mem }}
+#$ -l vf={{ mem }}
 {% endif %}
 
 #$ -wd {{ wdir }}

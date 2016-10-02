@@ -228,6 +228,7 @@ def main():
             chunksub_dir, config['arg_file'], config['chunksize'])):
         this_config = copy(config)
         this_config['chunk_file'] = chunk_file
+        this_config['job_id'] = job_id 
         this_config['stdout'] = get_file_name(chunksub_dir, job_id, ".out")
         this_config['stderr'] = get_file_name(chunksub_dir, job_id, ".err")
         job_file = get_file_name(chunksub_dir, job_id, ".job")
