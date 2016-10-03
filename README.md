@@ -60,7 +60,7 @@ you specify additional parameters that are forwarded to `qsub`:
 
 ```
 # split the input files in chunks of 10 and submit each chunk to the cluster
-cat accession_numbers | chunksub -N "download_geo" -l 10 ./download_geo.sh
+cat accession_numbers | chunksub -N "download_geo" --chunksize 10 ./download_geo.sh
 ```
 
 `chunksub` will create a job file for every chunk, and submit them via `qsub`. Both SGE and Torque clusters are submitted. 
