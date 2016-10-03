@@ -7,7 +7,7 @@
 #$ -q {{ queue }}
 {% endif %}
 {% if ncpus is not none %}
-#PBS -l ppn={{ ncpus }}
+#PBS -l nodes=1:ppn={{ ncpus }}
 #$ -pe smp {{ ncpus }}
 {% endif %}
 {% if wtime is not none %}
@@ -32,9 +32,7 @@
 {% endif %}
 
 #$ -wd {{ wdir }}
-if [ -e pbs_server ]; then
-        cd {{ wdir }}
-fi
+cd {{ wdir }}
 
 cat {{ chunk_file}} | xargs -I '{}' {{ command }}
 
