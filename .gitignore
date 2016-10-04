@@ -1,6 +1,10 @@
 # user specific stuff
 R.job_template
 test/*
+MANIFEST
+.idea/*
+dist/*
+*.egg-info*
 
 # python stuff
 *.swp

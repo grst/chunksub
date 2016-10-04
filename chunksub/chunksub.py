@@ -51,6 +51,7 @@ CONFIG_FIELDS = {
     'execute': lambda x: True if x.lower() in ['y', 'yes', 'true'] else False
 }
 
+
 def get_job_template(fname):
     """Create job template with jinja2"""
     fname = path.expanduser(fname)
