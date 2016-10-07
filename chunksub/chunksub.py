@@ -232,7 +232,7 @@ def main():
             chunksub_dir, config['arg_file'], config['chunksize'])):
         this_config = copy(config)
         this_config['chunk_file'] = chunk_file
-        this_config['job_id'] = job_id 
+        this_config['job_id'] = job_id
         this_config['stdout'] = get_file_name(chunksub_dir, job_id, ".out")
         this_config['stderr'] = get_file_name(chunksub_dir, job_id, ".err")
         job_file = get_file_name(chunksub_dir, job_id, ".job")
@@ -241,10 +241,13 @@ def main():
         job_files.append(job_file)
 
     # store the original command as script
-    with open(os.path.join(chunksub_dir, "cs_command.sh"), 'w') as cmd_file: 
+    with open(path.join(chunksub_dir, "cs_command.sh"), 'w') as cmd_file:
         cmd_file.write('#!/bin/bash \n')
         cmd_file.write(" ".join(argv))
-        cmd_file.wirte('\n')
+        cmd_file.write('\n')
+
+    # run jobs
+    run_job_files(job_files, config['execute'])
 
     config['arg_file'].close()
 
