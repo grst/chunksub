@@ -2,7 +2,15 @@
 *"like gnu parallel, only for qsub"*
 
 ## Installation
-Will end up on PyPI at some point...
+```
+pip install chunksub
+```
+or use the version from github
+```
+git clone git@github.com:grst/chunksub.git
+cd chunksub
+python setup.py install
+```
 
 ## Usage
 ```
