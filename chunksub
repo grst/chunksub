@@ -29,7 +29,7 @@ import docopt
 import jinja2
 import os
 from os import path
-from sys import stdin, stderr
+from sys import stdin, stderr, argv
 import pkg_resources
 import yaml
 from pprint import pprint
@@ -239,8 +239,11 @@ def main():
             jfh.write(template.render(**this_config) + '\n')
         job_files.append(job_file)
 
-    # run jobs
-    run_job_files(job_files, config['execute'])
+    # store the original command as script
+    with open(os.path.join(chunksub_dir, "cs_command.sh"), 'w') as cmd_file: 
+        cmd_file.write('#!/bin/bash \n')
+        cmd_file.write(" ".join(argv))
+        cmd_file.wirte('\n')
 
     config['arg_file'].close()
 
