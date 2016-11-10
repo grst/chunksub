@@ -87,4 +87,4 @@ wdir: .
 ```
 
 ### Adjusting the template file
-The integrated template ([`job_template`](job_template)) should work for most use cases on a SGE and torque cluster. If you need to change the way your command is executed of adjust advanced grid options, you can create your own template file and load it with the `-t` parameter.  
+The integrated template ([`job_template`](job_template)) should work for most use cases on a SGE, torque and slurm cluster. If you need to change the way your command is executed of adjust advanced grid options, you can create your own template file and load it with the `-t` parameter. There is a collection of template files in job_templates which you can adjust for your needs. 

@@ -1,0 +1,46 @@
+#!/bin/bash
+# Grid engine active comments
+# see comparison on https://kb.iu.edu/d/avgl
+
+{% if queue is not none %}
+#PBS -q {{ queue }}
+#$ -q {{ queue }}
+#SBATCH --partition={{ queue }}
+{% endif %}
+{% if ncpus is not none %}
+#PBS -l nodes=1:ppn={{ ncpus }}
+#$ -pe smp {{ ncpus }}
+#SBATCH --ntasks-per-node={{ ncpus }}
+{% endif %}
+{% if wtime is not none %}
+#PBS -l walltime={{ wtime }}
+#$ -l time={{ wtime }}
+#SBATCH --time={{ wtime }}
+{% endif %}
+{% if stdout is not none %}
+#PBS -o {{ stdout }}
+#$ -o {{ stdout }}
+#SBATCH --output={{ stdout }}
+{% endif %}
+{% if stderr is not none %}
+#PBS -e {{ stderr }}
+#$ -e {{ stderr }}
+#SBATCH --output={{ stderr }}
+{% endif %}
+{% if name is not none %}
+#PBS -N {{ name }}_{{ job_id }}
+#$ -N {{ name }}_{{ job_id }}
+#SBATCH --job-name={{ name}}_{{ job_id }}
+{% endif %}
+{% if mem is not none %}
+#PBS -l mem={{ mem }}
+#$ -l vf={{ mem }}
+#SBATCH --mem={{ mem }}
+{% endif %}
+
+#$ -wd {{ wdir }}
+#SBATCH --workdir={{ wdir }}
+cd {{ wdir }}
+
+cat {{ chunk_file}} | xargs -I '{}' {{ command }}
+
