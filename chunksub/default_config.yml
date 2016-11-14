@@ -1,0 +1,6 @@
+wdir: ./
+template: ~/.chunksub/default.template
+chunksize: 16
+job_dir: ./chunksub
+execute: yes
+scheduler: qsub

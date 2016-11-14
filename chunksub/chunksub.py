@@ -12,15 +12,15 @@ GRID-OPTIONS:
     -w WTIME, --wtime WTIME     Walltime to request
     -N NAME, --name NAME        Job name (will be basename of chunks & jobs)
     -m MEM, --mem MEM           RAM to request
-    -d WDIR, --wdir WDIR        Job's working directory [default: ./]
+    -d WDIR, --wdir WDIR        Job's working directory (default: {wdir})
 
 CHUNKSUB-OPTIONS:
-    -c CONFIG, --config CONFIG              Path to yaml config file [default: ~/.chunksub/config]
-    -t TEMPLATE, --template TEMPLATE        Jinja2 template for job file (default: integrated template)
-    -s CHUNKSIZE, --chunksize CHUNKSIZE     Number of lines per chunk [default: 16]
-    -j JOB_DIR, --job_dir JOB_DIR           Directory to save the job files. [default: ./chunksub]
-    -X EXECUTE, --execute EXECUTE           Execute qsub instead of printing the command to STDOUT [default: yes]
-    -b SCHEDULER, --scheduler SCHEDULER     Path to scheduler binary [default: qsub]
+    -c CONFIG, --config CONFIG              Path to yaml config file [default: {config}]
+    -t TEMPLATE, --template TEMPLATE        Jinja2 template for job file (default: {template})
+    -s CHUNKSIZE, --chunksize CHUNKSIZE     Number of lines per chunk (default: {chunksize})
+    -j JOB_DIR, --job_dir JOB_DIR           Directory to save the job files. (default: {job_dir})
+    -X EXECUTE, --execute EXECUTE           Execute qsub instead of printing the command to STDOUT (default: {execute})
+    -b SCHEDULER, --scheduler SCHEDULER     Path to scheduler binary (default: {scheduler})
 """
 
 from __future__ import print_function
@@ -35,9 +35,13 @@ import pkg_resources
 import yaml
 from pprint import pprint
 from subprocess import call
+from shutil import copyfile
 import tempfile
 import io
 
+# the .chunksub directory, where job templates and default settings live.
+CONFIG_DIR = "~/.chunksub"
+DEFAULT_CONFIG_FILE = CONFIG_DIR + "/config.yml"
 
 CONFIG_FIELDS = {
     'queue': str,
@@ -49,9 +53,26 @@ CONFIG_FIELDS = {
     'template': str,
     'chunksize': int,
     'job_dir': str,
-    'execute': lambda x: True if x.lower() in ['y', 'yes', 'true'] else False,
+    'execute': lambda x: True if str(x).lower() in ['y', 'yes', 'true'] else False,
     'scheduler': str
 }
+
+
+def init():
+    """initalize the chunksub directory on the first run."""
+    cs_dir = path.expanduser(CONFIG_DIR)
+    config_file = path.expanduser(DEFAULT_CONFIG_FILE)
+    try:
+        if not path.isdir(cs_dir):
+            os.mkdir(cs_dir)
+            copyfile(pkg_resources.resource_filename(__name__, "default_config.yml"),
+                     config_file)
+            copyfile(pkg_resources.resource_filename(__name__, "job_templates/default.template"),
+                     path.join(cs_dir, "default.template"))
+            print("INFO: created config directory {}. You can adjust default "
+                  "settings and job templates there. ".format(CONFIG_DIR))
+    except IOError as ex:
+        print("ERROR: could not create config directory. " + str(ex))
 
 
 def get_job_template(fname):
@@ -65,16 +86,14 @@ def get_job_template(fname):
 def load_config(fname):
     """Load config from yaml"""
     fname = path.expanduser(fname)
-    if path.exists(fname):
-        try:
-            with open(fname) as cfh:
-                config = yaml.load(cfh)
-        except IOError:
-            print("ERROR: non-existant config file", fname, file=stderr)
-            exit(1)
-        return config
-    else:
-        return {}
+    try:
+        with open(fname) as cfh:
+            config = yaml.load(cfh)
+    except IOError:
+        print("ERROR: non-existant config file", fname, file=stderr)
+        exit(1)
+    return config
+
 
 
 def make_config(opts):
@@ -214,12 +233,26 @@ def run_job_files(job_files, bin="qsub", execute=True):
             print("{} {}".format(bin, job_file))
 
 
+def save_command_file(path):
+    """
+    Store the orginal chunksub command as typed in the terminal
+    as a script to make it easy to re-execute the command.
+    """
+    command = " ".join(['"{}"'.format(x) if " " in x else x for x in argv])
+    with open(path, 'w') as cmd_file:
+        cmd_file.write('#!/bin/bash \n')
+        cmd_file.write(command)
+        cmd_file.write('\n')
+
+
 def main():
     """
     Read an argument file, split it into chunks and create a job file
     for each chunk.
     """
-    opts = docopt.docopt(__doc__)
+    init()
+    default_config = load_config(DEFAULT_CONFIG_FILE)
+    opts = docopt.docopt(__doc__.format(config=DEFAULT_CONFIG_FILE, **default_config))
     config = make_config(opts)
     print("CONFIGURATION:")
     pprint(config)
@@ -245,10 +278,7 @@ def main():
         job_files.append(job_file)
 
     # store the original command as script
-    with open(path.join(chunksub_dir, "cs_command.sh"), 'w') as cmd_file:
-        cmd_file.write('#!/bin/bash \n')
-        cmd_file.write(" ".join(argv))
-        cmd_file.write('\n')
+    save_command_file(path.join(chunksub_dir, "cs_command.sh"))
 
     # run jobs
     run_job_files(job_files, config['scheduler'], config['execute'])
