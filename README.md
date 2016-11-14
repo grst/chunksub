@@ -72,7 +72,7 @@ you specify additional parameters that are forwarded to `qsub`:
 cat accession_numbers | chunksub -N "download_geo" --chunksize 10 ./download_geo.sh
 ```
 
-`chunksub` will create a job file for every chunk, and submit them via `qsub`. Both SGE and Torque clusters are submitted. 
+`chunksub` will create a job file for every chunk, and submit them via `qsub`/`sbatch`. At the moment, SGE, torque and slurm are supported.  
 
 ## Advanced Options
 ### Using the config file
