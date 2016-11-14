@@ -3,7 +3,7 @@
 USAGE:
     chunksub --help
     chunksub [-q QUEUE -n NCPUS -w WTIME -m MEM -d WDIR \
--c CONFIG -t TEMPLATE -s CHUNKSIZE -j JOB_DIR -X EXECUTE] \
+-c CONFIG -t TEMPLATE -s CHUNKSIZE -j JOB_DIR -X EXECUTE -b SCHEDULER] \
 -N NAME <command> [<arguments>]
 
 GRID-OPTIONS:
@@ -20,6 +20,7 @@ CHUNKSUB-OPTIONS:
     -s CHUNKSIZE, --chunksize CHUNKSIZE     Number of lines per chunk [default: 16]
     -j JOB_DIR, --job_dir JOB_DIR           Directory to save the job files. [default: ./chunksub]
     -X EXECUTE, --execute EXECUTE           Execute qsub instead of printing the command to STDOUT [default: yes]
+    -b SCHEDULER, --scheduler SCHEDULER     Path to scheduler binary [default: qsub]
 """
 
 from __future__ import print_function
@@ -48,7 +49,8 @@ CONFIG_FIELDS = {
     'template': str,
     'chunksize': int,
     'job_dir': str,
-    'execute': lambda x: True if x.lower() in ['y', 'yes', 'true'] else False
+    'execute': lambda x: True if x.lower() in ['y', 'yes', 'true'] else False,
+    'scheduler': str
 }
 
 
@@ -92,6 +94,7 @@ def make_config(opts):
         "-s", "16", \
         "--job_dir", "/tmp/job", \
         "-X", 'yes', \
+        "-b", 'sbatch', \
         "echo", \
         argfile.name \
     ]
@@ -106,6 +109,7 @@ def make_config(opts):
      'name': 'the_name',
      'ncpus': 8,
      'queue': 'the_queue',
+     'scheduler': 'sbatch',
      'template': '/tmp/template.sh',
      'wdir': '/tmp/test',
      'wtime': '12:13:42'}
@@ -202,12 +206,12 @@ def make_chunks(chunksub_dir, arg_fileh, chunk_size):
         chunk_fh.write(record)
 
 
-def run_job_files(job_files, execute=True):
+def run_job_files(job_files, bin="qsub", execute=True):
     for job_file in job_files:
         if execute:
-            call(["qsub", job_file])
+            call([bin, job_file])
         else:
-            print("qsub {}".format(job_file))
+            print("{} {}".format(bin, job_file))
 
 
 def main():
@@ -247,7 +251,7 @@ def main():
         cmd_file.write('\n')
 
     # run jobs
-    run_job_files(job_files, config['execute'])
+    run_job_files(job_files, config['scheduler'], config['execute'])
 
     config['arg_file'].close()
 

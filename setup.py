@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name='chunksub',
-    version='0.1.2',
+    version='0.1.3',
     packages = find_packages(),
     description='Submit jobs in chunks on a qsub-based cluster. *Like `parallel` only for qsub*',
     author='Gregor Sturm',
