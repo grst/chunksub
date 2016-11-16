@@ -13,10 +13,23 @@ python setup.py install
 ```
 
 ## Usage
+Simplest case: 
+```
+chunksub --name my_job script.sh inputfile.txt
+```
+where `script.sh` takes one line of `inputfile.txt` as argument. 
+
+A more sophistocated invocation of the `script.sh` is possible: 
+```
+chunksub --name my_complex_job "scipt.sh -p -s 42 --input {} --verbose" inputfile.txt
+```
+
+### Full usage information:
 ```
 USAGE:
     chunksub --help
-    chunksub [-q QUEUE -n NCPUS -w WTIME -m MEM -d WDIR -c CONFIG -t TEMPLATE -s CHUNKSIZE -j JOB_DIR -X EXECUTE -b SCHEDULER] -N NAME <command> [<arguments>]
+    chunksub [-q QUEUE -n NCPUS -w WTIME -m MEM -d WDIR -c CONFIG -t TEMPLATE 
+        -s CHUNKSIZE -j JOB_DIR -X EXECUTE -b SCHEDULER] -N NAME <command> [<arguments>]
  
 GRID-OPTIONS:
     -q QUEUE, --queue QUEUE     Queue name (normal/express/copyq)
