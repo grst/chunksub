@@ -15,13 +15,13 @@ python setup.py install
 ## Usage
 Simplest case: 
 ```
-chunksub --name my_job script.sh inputfile.txt
+chunksub --name my_job ./script.sh inputfile.txt
 ```
 where `script.sh` takes one line of `inputfile.txt` as argument. 
 
 A more sophistocated invocation of the `script.sh` is possible: 
 ```
-chunksub --name my_complex_job "scipt.sh -p -s 42 --input {} --verbose" inputfile.txt
+chunksub --name my_complex_job "./scipt.sh -p -s 42 --input {} --verbose" inputfile.txt
 ```
 
 ### Full usage information:
