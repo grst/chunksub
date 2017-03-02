@@ -5,7 +5,7 @@
 {% if queue is not none %}
 #PBS -q {{ queue }}
 #$ -q {{ queue }}
-#SBATCH --partition={{ queue }}
+#SBATCH --qos={{ queue }}
 {% endif %}
 {% if ncpus is not none %}
 #PBS -l nodes=1:ppn={{ ncpus }}
